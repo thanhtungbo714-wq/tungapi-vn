@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tạo Key Online</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #0078d7, #00c3ff);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      color: #fff;
+    }
+    .box {
+      background: rgba(255,255,255,0.1);
+      border-radius: 16px;
+      padding: 30px 25px;
+      text-align: center;
+      width: 90%;
+      max-width: 400px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.2);
+      backdrop-filter: blur(8px);
+    }
+    h2 {
+      margin-bottom: 20px;
+      color: #fff;
+    }
+    input {
+      width: 100%;
+      padding: 10px;
+      border-radius: 8px;
+      border: none;
+      margin: 8px 0;
+      font-size: 16px;
+    }
+    button {
+      background: #00b4d8;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    button:hover {
+      background: #0077b6;
+    }
+    .result {
+      margin-top: 15px;
+      word-wrap: break-word;
+      background: rgba(255,255,255,0.2);
+      padding: 10px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>🔑 Tạo Key Online</h2>
+    <input type="text" id="username" placeholder="Nhập tài khoản...">
+    <input type="password" id="password" placeholder="Nhập mật khẩu...">
+    <button onclick="taoKey()">Tạo link</button>
+
+    <div class="result" id="result"></div>
+  </div>
+
+  <script>
+    function taoKey() {
+      const user = document.getElementById("username").value.trim();
+      const pass = document.getElementById("password").value.trim();
+      if (!user || !pass) {
+        document.getElementById("result").innerHTML = "⚠️ Vui lòng nhập đầy đủ thông tin!";
+        return;
+      }
+      
+      // Thay URL mẫu dưới đây bằng link API của bạn
+      const apiURL = `https://tungapikey.com/vip/login-key-php/?user=${encodeURIComponent(user)}&pass=${encodeURIComponent(pass)}`;
+      
+      document.getElementById("result").innerHTML = `
+        ✅ Link API của bạn:<br>
+        <a href="${apiURL}" target="_blank" style="color:#fff;text-decoration:underline">${apiURL}</a>
+      `;
+    }
+  </script>
+</body>
+</html>
