@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Create Token</title></head>
+<body style="font-family:Arial;padding:12px">
+  <h3>Tạo Token (không dùng server)</h3>
+  Key ID: <input id="keyid" value=""><br><br>
+  Ngày giờ hết hạn (ISO): <input id="expiry" type="datetime-local"><br><br>
+  Giới hạn thiết bị (0 = không giới hạn): <input id="limit" type="number" value="0"><br><br>
+  Allowed IPs (phân cách bởi dấu phẩy, bỏ trống = cho tất cả): <br>
+  <input id="ips" style="width:90%"><br><br>
+  <button id="make">Tạo token</button>
+  <button id="rand">Tạo keyid ngẫu nhiên</button>
+  <p id="out"></p>
+
+<script>
+function b64u(s){
+  // basic base64 URL-safe
+  let t = btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  return t;
+}
+document.getElementById('rand').onclick = function(){
+  const s = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  let o='';
+  for(let i=0;i<10;i++) o+=s.charAt(Math.floor(Math.random()*s.length));
+  document.getElementById('keyid').value = o;
+};
+document.getElementById('make').onclick = function(){
+  const keyid = (document.getElementById('keyid').value||'').trim() || ('K'+Date.now());
+  const expiryInput = document.getElementById('expiry').value;
+  const expiry = expiryInput ? new Date(expiryInput).toISOString() : '';
+  const limit = Number(document.getElementById('limit').value||0);
+  const ips = (document.getElementById('ips').value||'').split(',').map(x=>x.trim()).filter(Boolean).join(',');
+  const payload = [keyid, (new Date()).toISOString(), (expiry||''), (limit||0), ips].join(';;');
+  const token = b64u(payload);
+  const link = location.origin + location.pathname.replace(/create_token\.html$/,'api_key.html') + '?name_key=' + encodeURIComponent(token) + '&device_ip=YOUR_DEVICE_IP';
+  const out = document.getElementById('out');
+  out.innerHTML = '<b>Token:</b> <code>' + token + '</code><br><br>';
+  out.innerHTML += '<b>Link mẫu (thay YOUR_DEVICE_IP bằng IP thực):</b><br><code>' + link + '</code><br><br>';
+  out.innerHTML += '<b>Giải mã nhanh (payload):</b><br><pre>' + payload + '</pre>';
+};
+</script>
+</body>
+</html>
