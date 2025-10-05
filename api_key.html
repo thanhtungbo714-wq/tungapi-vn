@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>API Key Checker</title>
+</head>
+<body>
+<script>
+/*
+Token format (cơ chế tự chứa):
+- Token = base64(payload)
+- Payload fields (ngăn cách bởi ";;"):
+   keyid;;created_at_iso;;expired_at_iso;;device_limit;;allowed_ip1,allowed_ip2,...
+- Ví dụ payload: ABC123;;2025-10-01T12:00:00;;2025-10-10T23:59:59;;2;;203.113.100.10,203.113.100.11
+- Token = btoa(payload)  (khi tạo, dùng create_token.html)
+*/
+
+(function(){
+  function outText(s){
+    document.documentElement.innerHTML = '';
+    document.write(s);
+    // Also print to console
+    console.log(s);
+  }
+
+  function getParam(k){
+    return new URLSearchParams(location.search).get(k) || '';
+  }
+
+  function tryParseToken(token){
+    try{
+      // decode (base64)
+      // support URL-safe base64: replace -_ -> +/
+      token = token.replace(/-/g, '+').replace(/_/g, '/');
+      // pad
+      while(token.length % 4) token += '=';
+      const payload = atob(token);
+      const parts = payload.split(';;');
+      if(parts.length < 4) return null;
+      const keyid = parts[0];
+      const created_at = parts[1] || null;
+      const expired_at = parts[2] || null;
+      const device_limit = Number(parts[3]||0);
+      const allowed_ips = parts[4] ? parts[4].split(',').map(s=>s.trim()).filter(Boolean) : [];
+      return {keyid, created_at, expired_at, device_limit, allowed_ips};
+    }catch(e){
+      return null;
+    }
+  }
+
+  // Main
+  const token = (getParam('name_key')||'').trim();
+  const device_ip = (getParam('device_ip')||'').trim();
+
+  if(!token){
+    outText('message: invalid; detail: no_token');
+    return;
+  }
+
+  const info = tryParseToken(token);
+  if(!info){
+    outText('message: invalid; detail: bad_token');
+    return;
+  }
+
+  // check expiry
+  const now = new Date();
+  if(info.expired_at){
+    const exp = new Date(info.expired_at);
+    if(isNaN(exp.getTime())){
+      outText('message: invalid; detail: bad_expiry');
+      return;
+    }
+    if(now > exp){
+      outText('message: expired; expired_at: ' + info.expired_at);
+      return;
+    }
+  }
+
+  // check allowed ips
+  if(info.allowed_ips.length > 0){
+    if(!device_ip){
+      outText('message: need_device_ip');
+      return;
+    }
+    if(!info.allowed_ips.includes(device_ip)){
+      outText('message: device_not_allowed; device_ip: ' + device_ip);
+      return;
+    }
+  }
+
+  // check device limit (NOTE: without server we cannot increment used count)
+  // Here: we only check if declared device_limit is >= number of allowed_ips (if allowed_ips provided).
+  if(info.device_limit > 0 && info.allowed_ips.length > 0){
+    if(info.allowed_ips.length > info.device_limit){
+      // more allowed ips than device limit - that's probably misconfigured
+      outText('message: config_error; detail: allowed_ips_exceed_limit');
+      return;
+    }
+    // else pass — we cannot detect used devices without server
+  }
+
+  // valid
+  const resp = [
+    'message: valid',
+    'key_id: ' + info.keyid,
+    'created_at: ' + (info.created_at||''),
+    'expires: ' + (info.expired_at||''),
+    'device_limit: ' + (info.device_limit||0),
+    'allowed_ips: ' + (info.allowed_ips.join(',')||'all')
+  ].join('; ');
+  outText(resp);
+
+})();
+</script>
+</body>
+</html>
