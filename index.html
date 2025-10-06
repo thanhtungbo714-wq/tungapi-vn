@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Key Generator & Checker (No PHP)</title>
+<style>
+  body{font-family:system-ui,Segoe UI,Roboto,Arial;margin:0;padding:20px;background:#f4f7fb}
+  .card{max-width:920px;margin:20px auto;padding:20px;background:#fff;border-radius:12px;box-shadow:0 6px 22px rgba(11,18,37,0.06)}
+  h1{margin:0 0 10px;font-size:20px}
+  label{display:block;margin-top:12px;font-weight:600}
+  input,select,button{padding:10px;border-radius:8px;border:1px solid #d0d7e0;font-size:14px}
+  input,select{width:100%;box-sizing:border-box}
+  .row{display:flex;gap:8px}
+  .row > *{flex:1}
+  button{background:#0b74ff;color:#fff;border:0;cursor:pointer}
+  .msg{margin-top:12px;padding:12px;border-radius:8px}
+  .err{background:#fff0f0;color:#901a00}
+  .warn{background:#fff7e6;color:#7e4f00}
+  .ok{background:#e8fff0;color:#0b6b2a}
+  pre{background:#f7f9fc;padding:10px;border-radius:8px;overflow:auto}
+  .tiny{font-size:12px;color:#667}
+  .controls{display:flex;gap:8px;margin-top:8px}
+  .controls button{flex:0 0 auto}
+  .list{margin-top:12px}
+  .list-item{padding:8px;border-radius:8px;background:#f6f8fb;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+  .btn-ghost{background:transparent;border:1px solid #cfe; color:#111}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Key Generator & Checker (chạy trên GitHub Pages — không cần PHP)</h1>
+    <p class="tiny">Key chứa thông tin thời hạn — giải pháp này **không** dùng server. Nếu muốn lưu key trung tâm hoặc tránh bị làm giả, cần backend (Google Apps Script / Firebase / PHP).</p>
+
+    <label>Tạo key — nhập số giờ hiệu lực</label>
+    <div class="row">
+      <input id="hours" type="number" min="1" value="24" />
+      <input id="label" placeholder="Ghi chú / tên (tùy chọn)" />
+      <button id="btnCreate">Tạo key</button>
+    </div>
+
+    <div id="createResult"></div>
+
+    <hr/>
+
+    <label>Kiểm tra key</label>
+    <input id="checkInput" placeholder="Dán key vào đây..." />
+    <div class="controls">
+      <button id="btnCheck">Kiểm Tra</button>
+      <button id="btnDecode" class="btn-ghost">Giải mã xem nội dung</button>
+      <button id="btnClear" class="btn-ghost">Xóa danh sách local</button>
+    </div>
+    <div id="out"></div>
+
+    <hr/>
+    <h3>Danh sách key đã tạo (localStorage)</h3>
+    <div id="list" class="list"></div>
+  </div>
+
+<script>
+/* Helper: sinh random string */
+function rnd(len=8){
+  const a='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s='';
+  for(let i=0;i<len;i++) s+=a[Math.floor(Math.random()*a.length)];
+  return s;
+}
+
+/* Tạo key: tạo payload rồi base64 encode (URL-safe) */
+function makeKey(hours, label){
+  const now = Date.now();
+  const exp = now + Math.max(1, hours) * 3600 * 1000;
+  const payload = { k: rnd(10), created: now, exp: exp, label: label || '' };
+  const json = JSON.stringify(payload);
+  // base64 url-safe
+  const b = btoa(unescape(encodeURIComponent(json))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+  return b;
+}
+
+/* Decode key: return payload or null */
+function decodeKey(key){
+  try{
+    // reverse url-safe
+    let s = key.replace(/-/g,'+').replace(/_/g,'/');
+    // pad
+    while (s.length % 4) s += '=';
+    const json = decodeURIComponent(escape(atob(s)));
+    return JSON.parse(json);
+  }catch(e){
+    return null;
+  }
+}
+
+/* localStorage danh sách key tạo */
+const STORE_KEY = 'keys_created_v1';
+function loadList(){ try{ return JSON.parse(localStorage.getItem(STORE_KEY) || '[]') }catch(e){ return [] } }
+function saveList(list){ localStorage.setItem(STORE_KEY, JSON.stringify(list)) }
+
+/* UI */
+const elList = document.getElementById('list');
+function refreshList(){
+  const list = loadList();
+  elList.innerHTML = '';
+  if (list.length===0) elList.innerHTML = '<div class="tiny">Chưa có key nào.</div>';
+  list.slice().reverse().forEach((it, idx)=>{
+    const div = document.createElement('div');
+    div.className = 'list-item';
+    const left = document.createElement('div');
+    left.innerHTML = `<b>${it.key}</b><div class="tiny">${new Date(it.created).toLocaleString()} → ${new Date(it.exp).toLocaleString()} ${it.label?(' — '+it.label):''}</div>`;
+    const right = document.createElement('div');
+    const btn = document.createElement('button'); btn.textContent='Copy'; btn.onclick=()=>navigator.clipboard.writeText(it.key);
+    const del = document.createElement('button'); del.textContent='Xoá'; del.style.marginLeft='8px';
+    del.onclick = ()=>{
+      const arr = loadList().filter(x=>x.key!==it.key);
+      saveList(arr);
+      refreshList();
+    }
+    right.appendChild(btn); right.appendChild(del);
+    div.appendChild(left); div.appendChild(right);
+    elList.appendChild(div);
+  })
+}
+refreshList();
+
+/* Events */
+document.getElementById('btnCreate').addEventListener('click', ()=>{
+  const hours = parseInt(document.getElementById('hours').value) || 24;
+  const label = document.getElementById('label').value.trim();
+  const key = makeKey(hours, label);
+  const payload = decodeKey(key);
+  const list = loadList();
+  list.push({ key, created: payload.created, exp: payload.exp, label });
+  saveList(list);
+  refreshList();
+  document.getElementById('createResult').innerHTML = `<div class="msg ok">Tạo key thành công: <b>${key}</b><div class="tiny">Hết hạn: ${new Date(payload.exp).toLocaleString()}</div></div>`;
+});
+
+document.getElementById('btnCheck').addEventListener('click', ()=>{
+  const k = document.getElementById('checkInput').value.trim();
+  const out = document.getElementById('out');
+  out.innerHTML = '';
+  if(!k){ out.innerHTML = '<div class="msg err">Nhập key để kiểm tra</div>'; return; }
+  const payload = decodeKey(k);
+  if(!payload){ out.innerHTML = '<div class="msg err">Key Không Tồn Tại (không hợp lệ)</div>'; return; }
+  // ở đây chúng ta có payload.exp
+  const now = Date.now();
+  if(now > payload.exp){
+    out.innerHTML = '<div class="msg warn">Hết Hạn</div>';
+    return;
+  }
+  // nếu bạn muốn ràng buộc device: bạn cần server (vì IP / device id không an toàn lưu ở client)
+  out.innerHTML = '<div class="msg ok">Key Đúng!!<div class="tiny">Hết hạn: '+new Date(payload.exp).toLocaleString()+'</div></div>';
+});
+
+document.getElementById('btnDecode').addEventListener('click', ()=>{
+  const k = document.getElementById('checkInput').value.trim();
+  if(!k){ alert('Nhập key để giải mã'); return; }
+  const p = decodeKey(k);
+  if(!p){ alert('Key không hợp lệ'); return; }
+  alert('Payload:\n' + JSON.stringify(p, null, 2));
+});
+
+document.getElementById('btnClear').addEventListener('click', ()=>{
+  if(confirm('Xóa tất cả key đã lưu ở trình duyệt localStorage?')){ localStorage.removeItem(STORE_KEY); refreshList(); }
+});
+</script>
+</body>
+</html>
