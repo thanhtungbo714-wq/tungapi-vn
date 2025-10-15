@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Admin Update Key</title>
+</head>
+<body>
+<h2>Cập nhật key</h2>
+<input type="text" id="newKey" placeholder="Nhập key mới">
+<button onclick="updateKey()">Tạo file key.html</button>
+
+<script>
+function updateKey() {
+  const key = document.getElementById("newKey").value.trim();
+  if(!key) return alert("Nhập key!");
+  const content = `<!DOCTYPE html><html><body><div id='key'>${key}</div></body></html>`;
+  const blob = new Blob([content], {type: "text/html"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "key.html";
+  a.click();
+}
+</script>
+</body>
+</html>
